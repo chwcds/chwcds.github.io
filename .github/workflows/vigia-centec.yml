@@ -5,6 +5,11 @@ on:
     # 07:00 America/Sao_Paulo = 10:00 UTC
     - cron: "0 10 * * *"
   workflow_dispatch:
+    inputs:
+      testar_alerta:
+        description: "Criar issue de TESTE para conferir se o e-mail de alerta chega"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -71,3 +76,12 @@ jobs:
           gh issue create \
             --title "🚨 EDITAL CENTEC PUBLICADO — Ana Letícia" \
             --body "$(printf '%s\n\n**Link:** %s\n\n**Trechos encontrados:**\n%s\n\n_Alerta automático do Vigia Edital Centec — https://chwcds.github.io/vigia-centec/_' "$RESUMO" "$LINK" "$TRECHOS")"
+
+      - name: Criar issue de TESTE do alerta
+        if: github.event_name == 'workflow_dispatch' && inputs.testar_alerta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "🧪 TESTE DE ALERTA — Vigia Edital Centec" \
+            --body "$(printf 'Esta é uma issue de TESTE, criada de propósito para conferir se a notificação por e-mail chega.\n\nSe você recebeu este aviso por e-mail, o alerta do edital está funcionando — no dia, a issue virá com o título \"🚨 EDITAL CENTEC PUBLICADO — Ana Letícia\", o resumo e o link.\n\nPode fechar esta issue depois de conferir.')"
