@@ -1,0 +1,80 @@
+name: Vigia Edital Centec
+
+on:
+  schedule:
+    # 07:00 America/Sao_Paulo = 10:00 UTC
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: vigia-centec
+  cancel-in-progress: false
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        run: pip install requests beautifulsoup4
+
+      - name: Guardar status anterior
+        id: antes
+        run: |
+          if [ -f vigia-centec/status.json ]; then
+            echo "status=$(jq -r '.status' vigia-centec/status.json)" >> "$GITHUB_OUTPUT"
+            jq '{status, link, trechos_encontrados}' vigia-centec/status.json > /tmp/antes.json
+          else
+            echo "status=INEXISTENTE" >> "$GITHUB_OUTPUT"
+            echo '{}' > /tmp/antes.json
+          fi
+
+      - name: Verificar edital
+        run: python scripts/verificar_edital.py
+
+      - name: Detectar mudança de conteúdo
+        id: mudanca
+        run: |
+          jq '{status, link, trechos_encontrados}' vigia-centec/status.json > /tmp/depois.json
+          echo "status=$(jq -r '.status' vigia-centec/status.json)" >> "$GITHUB_OUTPUT"
+          if cmp -s /tmp/antes.json /tmp/depois.json; then
+            echo "mudou=false" >> "$GITHUB_OUTPUT"
+            echo "Sem mudança de conteúdo — nada a commitar."
+          else
+            echo "mudou=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit do status.json
+        if: steps.mudanca.outputs.mudou == 'true'
+        run: |
+          git config user.name "vigia-centec[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vigia-centec/status.json
+          git commit -m "vigia-centec: status ${{ steps.mudanca.outputs.status }}"
+          git push
+
+      - name: Criar issue de alerta (edital publicado)
+        if: >-
+          steps.mudanca.outputs.mudou == 'true' &&
+          steps.mudanca.outputs.status == 'PUBLICADO' &&
+          steps.antes.outputs.status != 'PUBLICADO'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RESUMO=$(jq -r '.resumo' vigia-centec/status.json)
+          LINK=$(jq -r '.link' vigia-centec/status.json)
+          TRECHOS=$(jq -r '.trechos_encontrados[]? | "- " + .' vigia-centec/status.json)
+          gh issue create \
+            --title "🚨 EDITAL CENTEC PUBLICADO — Ana Letícia" \
+            --body "$(printf '%s\n\n**Link:** %s\n\n**Trechos encontrados:**\n%s\n\n_Alerta automático do Vigia Edital Centec — https://chwcds.github.io/vigia-centec/_' "$RESUMO" "$LINK" "$TRECHOS")"

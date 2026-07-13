@@ -1,0 +1,19 @@
+{
+  "name": "Vigia Edital Centec",
+  "short_name": "Vigia Centec",
+  "description": "Monitor do edital de processo seletivo — técnico subsequente (pós-médio) no Centec/Funec, Contagem/MG.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0E1513",
+  "theme_color": "#0E1513",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

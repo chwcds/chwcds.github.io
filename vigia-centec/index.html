@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vigia Edital Centec</title>
+<meta name="description" content="Monitor automático do edital de processo seletivo de estudantes — técnico subsequente (pós-médio) no Centec/Funec.">
+<meta name="theme-color" content="#0E1513">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+  :root{
+    --bg:#0E1513;
+    --painel:#141d1a;
+    --borda:#22302b;
+    --texto:#d7e2dc;
+    --texto-fraco:#8fa39a;
+    --verde:#2ecc71;
+    --verde-escuro:#123524;
+    --cinza:#7a8a83;
+    --cinza-escuro:#1a2420;
+    --ambar:#e6a817;
+    --ambar-escuro:#3a2c0a;
+    --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg);
+    color:var(--texto);
+    font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:1.25rem 1rem 2.5rem;
+  }
+  main{width:100%;max-width:520px}
+  header{text-align:center;margin:.75rem 0 1.5rem}
+  h1{font-size:1.45rem;letter-spacing:.03em;font-weight:700}
+  h1 .olho{color:var(--verde)}
+  .subtitulo{
+    margin-top:.4rem;
+    font-size:.8rem;
+    color:var(--texto-fraco);
+    line-height:1.5;
+  }
+  #carimbo{
+    border:3px solid var(--cinza);
+    color:var(--cinza);
+    background:var(--cinza-escuro);
+    border-radius:14px;
+    text-align:center;
+    padding:1.6rem 1rem;
+    font-family:var(--mono);
+    font-size:clamp(1.3rem,6.5vw,2rem);
+    font-weight:700;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    transform:rotate(-1.5deg);
+    margin-bottom:1.5rem;
+    transition:all .3s ease;
+  }
+  #carimbo.publicado{border-color:var(--verde);color:var(--verde);background:var(--verde-escuro);
+    box-shadow:0 0 30px rgba(46,204,113,.25)}
+  #carimbo.erro{border-color:var(--ambar);color:var(--ambar);background:var(--ambar-escuro)}
+  .cartao{
+    background:var(--painel);
+    border:1px solid var(--borda);
+    border-radius:12px;
+    padding:1rem 1.1rem;
+    margin-bottom:.9rem;
+  }
+  .rotulo{
+    font-size:.68rem;
+    text-transform:uppercase;
+    letter-spacing:.12em;
+    color:var(--texto-fraco);
+    margin-bottom:.35rem;
+  }
+  .dado{font-family:var(--mono);font-size:.9rem;line-height:1.55;word-break:break-word}
+  .dado a{color:var(--verde);text-decoration:none;border-bottom:1px dotted var(--verde)}
+  .dado a:active{opacity:.7}
+  ul.trechos{list-style:none}
+  ul.trechos li{
+    font-family:var(--mono);
+    font-size:.78rem;
+    line-height:1.5;
+    padding:.45rem 0;
+    border-top:1px dashed var(--borda);
+    color:var(--texto-fraco);
+  }
+  ul.trechos li:first-child{border-top:none;padding-top:0}
+  .botoes{display:flex;flex-direction:column;gap:.6rem;margin-top:1.1rem}
+  .botao{
+    display:block;
+    text-align:center;
+    padding:.85rem 1rem;
+    border-radius:10px;
+    font-size:.9rem;
+    font-weight:600;
+    text-decoration:none;
+    border:1px solid var(--borda);
+    color:var(--texto);
+    background:var(--painel);
+  }
+  .botao.principal{background:var(--verde-escuro);border-color:var(--verde);color:var(--verde)}
+  footer{
+    margin-top:1.75rem;
+    text-align:center;
+    font-size:.7rem;
+    color:var(--texto-fraco);
+    font-family:var(--mono);
+    line-height:1.6;
+  }
+  .oculto{display:none}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1><span class="olho">◉</span> Vigia Edital Centec</h1>
+    <p class="subtitulo">Técnico subsequente (pós-médio) — Análises Clínicas · Farmácia · Química<br>Funec · Contagem/MG</p>
+  </header>
+
+  <div id="carimbo">carregando…</div>
+
+  <section class="cartao">
+    <div class="rotulo">Última verificação</div>
+    <div class="dado" id="verificado">—</div>
+  </section>
+
+  <section class="cartao">
+    <div class="rotulo">Resumo</div>
+    <div class="dado" id="resumo">—</div>
+  </section>
+
+  <section class="cartao oculto" id="cartao-trechos">
+    <div class="rotulo">Trechos encontrados</div>
+    <ul class="trechos" id="trechos"></ul>
+  </section>
+
+  <div class="botoes">
+    <a class="botao principal oculto" id="link-edital" href="#" target="_blank" rel="noopener">📄 Abrir edital / página encontrada</a>
+    <a class="botao" href="https://portal.contagem.mg.gov.br/portal/editais/3" target="_blank" rel="noopener">🏛️ Portal de Editais de Contagem</a>
+  </div>
+
+  <footer>
+    verificação automática diária às 07h (Brasília)<br>
+    <span id="rodape-status">status.json</span>
+  </footer>
+</main>
+
+<script>
+(function(){
+  var carimbo = document.getElementById('carimbo');
+  var verificado = document.getElementById('verificado');
+  var resumo = document.getElementById('resumo');
+  var linkEdital = document.getElementById('link-edital');
+  var cartaoTrechos = document.getElementById('cartao-trechos');
+  var listaTrechos = document.getElementById('trechos');
+  var rodape = document.getElementById('rodape-status');
+
+  function formatarData(iso){
+    try{
+      var d = new Date(iso);
+      if (isNaN(d)) return iso;
+      return d.toLocaleString('pt-BR', {
+        day:'2-digit', month:'2-digit', year:'numeric',
+        hour:'2-digit', minute:'2-digit',
+        timeZone:'America/Sao_Paulo'
+      }) + ' (Brasília)';
+    }catch(e){ return iso; }
+  }
+
+  fetch('status.json?t=' + Date.now(), {cache:'no-store'})
+    .then(function(r){
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(s){
+      carimbo.classList.remove('publicado','erro');
+      if (s.status === 'PUBLICADO'){
+        carimbo.textContent = 'EDITAL PUBLICADO';
+        carimbo.classList.add('publicado');
+        document.title = '🟢 EDITAL PUBLICADO — Vigia Centec';
+      } else if (s.status === 'ERRO'){
+        carimbo.textContent = 'ERRO NA VERIFICAÇÃO';
+        carimbo.classList.add('erro');
+      } else {
+        carimbo.textContent = 'NÃO PUBLICADO';
+      }
+
+      verificado.textContent = s.verificado_em ? formatarData(s.verificado_em) : '—';
+      resumo.textContent = s.resumo || '—';
+
+      if (s.link){
+        linkEdital.href = s.link;
+        linkEdital.classList.remove('oculto');
+      }
+
+      if (s.trechos_encontrados && s.trechos_encontrados.length){
+        listaTrechos.innerHTML = '';
+        s.trechos_encontrados.forEach(function(t){
+          var li = document.createElement('li');
+          li.textContent = t;
+          listaTrechos.appendChild(li);
+        });
+        cartaoTrechos.classList.remove('oculto');
+      }
+
+      rodape.textContent = 'status: ' + (s.status || '?');
+    })
+    .catch(function(e){
+      carimbo.textContent = 'ERRO NA VERIFICAÇÃO';
+      carimbo.classList.add('erro');
+      resumo.textContent = 'Não foi possível carregar o status.json (' + e.message + '). Recarregue a página.';
+    });
+})();
+</script>
+</body>
+</html>
