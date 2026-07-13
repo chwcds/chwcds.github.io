@@ -105,6 +105,31 @@
     background:var(--painel);
   }
   .botao.principal{background:var(--verde-escuro);border-color:var(--verde);color:var(--verde)}
+  button.botao{width:100%;cursor:pointer;font-family:inherit}
+  .botao.mini{padding:.55rem .8rem;font-size:.78rem;width:auto;flex:1}
+  .linha-botoes{display:flex;gap:.5rem;margin-top:.6rem}
+  .aviso-disparo{
+    font-family:var(--mono);
+    font-size:.78rem;
+    color:var(--ambar);
+    text-align:center;
+    padding:.3rem;
+    line-height:1.5;
+  }
+  .aviso-disparo.ok{color:var(--verde)}
+  .ajuda{font-size:.75rem;color:var(--texto-fraco);line-height:1.6;margin-bottom:.6rem}
+  #campo-token{
+    width:100%;
+    background:var(--bg);
+    border:1px solid var(--borda);
+    border-radius:8px;
+    color:var(--texto);
+    font-family:var(--mono);
+    font-size:.8rem;
+    padding:.6rem;
+  }
+  .config-link{text-align:center;margin-top:.8rem}
+  .config-link a{font-size:.72rem;color:var(--texto-fraco);text-decoration:none;font-family:var(--mono)}
   footer{
     margin-top:1.75rem;
     text-align:center;
@@ -142,8 +167,25 @@
 
   <div class="botoes">
     <a class="botao principal oculto" id="link-edital" href="#" target="_blank" rel="noopener">📄 Abrir edital / página encontrada</a>
+    <button class="botao" id="btn-verificar" type="button">🔄 Verificar agora</button>
+    <div class="aviso-disparo oculto" id="aviso-disparo"></div>
     <a class="botao" href="https://portal.contagem.mg.gov.br/portal/editais/3" target="_blank" rel="noopener">🏛️ Portal de Editais de Contagem</a>
   </div>
+
+  <section class="cartao oculto" id="painel-token">
+    <div class="rotulo">Disparo direto (opcional)</div>
+    <p class="ajuda">Com um token do GitHub salvo <em>somente neste aparelho</em>, o botão
+    "Verificar agora" dispara o robô sozinho, sem abrir o GitHub. Como criar:
+    GitHub → Settings → Developer settings → Fine-grained tokens → Generate new token →
+    Repository access: <b>chwcds.github.io</b> → Permissions → <b>Actions: Read and write</b> → Generate.
+    Cole o token abaixo:</p>
+    <input type="password" id="campo-token" placeholder="github_pat_..." autocomplete="off">
+    <div class="linha-botoes">
+      <button class="botao mini" id="btn-salvar-token" type="button">Salvar neste aparelho</button>
+      <button class="botao mini" id="btn-remover-token" type="button">Remover token</button>
+    </div>
+  </section>
+  <p class="config-link"><a href="#" id="abrir-config">⚙ configurar disparo direto</a></p>
 
   <footer>
     verificação automática diária às 07h (Brasília)<br>
@@ -173,12 +215,22 @@
     }catch(e){ return iso; }
   }
 
-  fetch('status.json?t=' + Date.now(), {cache:'no-store'})
-    .then(function(r){
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    })
-    .then(function(s){
+  function carregarStatus(){
+    return fetch('status.json?t=' + Date.now(), {cache:'no-store'})
+      .then(function(r){
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(s){ render(s); return s; })
+      .catch(function(e){
+        carimbo.textContent = 'ERRO NA VERIFICAÇÃO';
+        carimbo.classList.add('erro');
+        resumo.textContent = 'Não foi possível carregar o status.json (' + e.message + '). Recarregue a página.';
+        return null;
+      });
+  }
+
+  function render(s){
       carimbo.classList.remove('publicado','erro');
       if (s.status === 'PUBLICADO'){
         carimbo.textContent = 'EDITAL PUBLICADO';
@@ -210,12 +262,118 @@
       }
 
       rodape.textContent = 'status: ' + (s.status || '?');
-    })
-    .catch(function(e){
-      carimbo.textContent = 'ERRO NA VERIFICAÇÃO';
-      carimbo.classList.add('erro');
-      resumo.textContent = 'Não foi possível carregar o status.json (' + e.message + '). Recarregue a página.';
+  }
+
+  // ---------- botão "Verificar agora" ----------
+  var REPO_API = 'https://api.github.com/repos/chwcds/chwcds.github.io';
+  var URL_RUN_WORKFLOW = 'https://github.com/chwcds/chwcds.github.io/actions/workflows/vigia-centec.yml';
+  var CHAVE_TOKEN = 'vigia-centec-token';
+
+  var btnVerificar = document.getElementById('btn-verificar');
+  var aviso = document.getElementById('aviso-disparo');
+  var painelToken = document.getElementById('painel-token');
+  var campoToken = document.getElementById('campo-token');
+  var ultimoVerificadoEm = null;
+
+  function token(){ try { return localStorage.getItem(CHAVE_TOKEN) || ''; } catch(e){ return ''; } }
+
+  function mostrarAviso(msg, ok){
+    aviso.textContent = msg;
+    aviso.classList.remove('oculto');
+    aviso.classList.toggle('ok', !!ok);
+  }
+
+  function atualizarBotao(){
+    btnVerificar.textContent = token()
+      ? '🔄 Verificar agora'
+      : '🔄 Verificar agora (abre o GitHub)';
+  }
+
+  function aguardarResultado(tentativa){
+    if (tentativa > 24){ // ~6 min
+      mostrarAviso('O robô rodou, mas o resultado ainda não republicou. Recarregue a página em instantes.', false);
+      btnVerificar.disabled = false;
+      atualizarBotao();
+      return;
+    }
+    setTimeout(function(){
+      fetch('status.json?t=' + Date.now(), {cache:'no-store'})
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(s){
+          if (s && s.verificado_em && s.verificado_em !== ultimoVerificadoEm){
+            render(s);
+            ultimoVerificadoEm = s.verificado_em;
+            mostrarAviso('✓ Verificação concluída agora.', true);
+            btnVerificar.disabled = false;
+            atualizarBotao();
+          } else {
+            mostrarAviso('Robô em execução… aguardando resultado (' + Math.round(tentativa * 15 / 60 * 10) / 10 + ' min)', false);
+            aguardarResultado(tentativa + 1);
+          }
+        })
+        .catch(function(){ aguardarResultado(tentativa + 1); });
+    }, 15000);
+  }
+
+  btnVerificar.addEventListener('click', function(){
+    var t = token();
+    if (!t){
+      window.open(URL_RUN_WORKFLOW, '_blank', 'noopener');
+      mostrarAviso('No GitHub: botão "Run workflow" → confirmar. Depois volte aqui e recarregue.', false);
+      return;
+    }
+    btnVerificar.disabled = true;
+    btnVerificar.textContent = '⏳ Disparando…';
+    fetch(REPO_API + '/actions/workflows/vigia-centec.yml/dispatches', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + t,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ref: 'main'})
+    }).then(function(r){
+      if (r.status === 204){
+        btnVerificar.textContent = '⏳ Robô rodando…';
+        mostrarAviso('Disparado! O resultado aparece aqui em ~2 minutos.', true);
+        aguardarResultado(1);
+      } else if (r.status === 401 || r.status === 403){
+        throw new Error('token inválido ou sem permissão (Actions: Read and write)');
+      } else {
+        throw new Error('HTTP ' + r.status);
+      }
+    }).catch(function(e){
+      mostrarAviso('Falha no disparo: ' + e.message, false);
+      btnVerificar.disabled = false;
+      atualizarBotao();
     });
+  });
+
+  document.getElementById('abrir-config').addEventListener('click', function(ev){
+    ev.preventDefault();
+    painelToken.classList.toggle('oculto');
+  });
+
+  document.getElementById('btn-salvar-token').addEventListener('click', function(){
+    var v = campoToken.value.trim();
+    if (!v){ mostrarAviso('Cole o token antes de salvar.', false); return; }
+    try { localStorage.setItem(CHAVE_TOKEN, v); } catch(e){}
+    campoToken.value = '';
+    painelToken.classList.add('oculto');
+    mostrarAviso('✓ Token salvo neste aparelho. O botão agora dispara direto.', true);
+    atualizarBotao();
+  });
+
+  document.getElementById('btn-remover-token').addEventListener('click', function(){
+    try { localStorage.removeItem(CHAVE_TOKEN); } catch(e){}
+    mostrarAviso('Token removido deste aparelho.', true);
+    atualizarBotao();
+  });
+
+  atualizarBotao();
+  carregarStatus().then(function(s){
+    if (s && s.verificado_em) ultimoVerificadoEm = s.verificado_em;
+  });
 })();
 </script>
 </body>
