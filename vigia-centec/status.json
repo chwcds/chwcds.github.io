@@ -1,7 +1,7 @@
 {
-  "status": "ERRO",
-  "resumo": "Falha ao acessar as fontes de verificação: Portal de Editais de Contagem: ConnectTimeout; Estuda Contagem (Funec): ConnectionError. Nova tentativa na próxima execução.",
+  "status": "NAO_PUBLICADO",
+  "resumo": "Nenhum edital novo (2026+) de processo seletivo de estudantes para cursos técnicos subsequentes (pós-médio) no Centec — Análises Clínicas, Farmácia ou Química. Fontes verificadas: Portal de Editais de Contagem. (fonte indisponível: Estuda Contagem (Funec): ConnectionError)",
   "link": "https://portal.contagem.mg.gov.br/portal/editais/3",
-  "verificado_em": "2026-08-22T07:25:09-03:00",
+  "verificado_em": "2026-08-23T07:25:14-03:00",
   "trechos_encontrados": []
 }
